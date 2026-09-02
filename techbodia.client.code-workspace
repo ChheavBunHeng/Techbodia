@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"path": "techbodia.client"
+		},
+		{
+			"path": "Techbodia.Server"
+		}
+	],
+	"settings": {
+		"sqltools.connections": [
+			{
+				"ssh": "Disabled",
+				"previewLimit": 50,
+				"server": "thomas.proxy.rlwy.net",
+				"port": 34398,
+				"driver": "PostgreSQL",
+				"name": "railway",
+				"database": "railway",
+				"username": "postgres",
+				"password": "efcfHCNUOUTFZJtIziBwWjaNMGDGVdRv"
+			}
+		]
+	}
+}

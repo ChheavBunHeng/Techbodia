@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="techbodia.client/techbodia.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="Techbodia.Server/Techbodia.Server.csproj" />
+</Solution>
