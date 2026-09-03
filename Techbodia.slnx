@@ -1,4 +1,8 @@
 <Solution>
+  <Project Path="maindb/maindb.sqlproj" Id="1a043272-ee53-422a-b346-ff3c8cc4c7b7">
+    <Build />
+    <Deploy />
+  </Project>
   <Project Path="techbodia.client/techbodia.client.esproj">
     <Build />
     <Deploy />

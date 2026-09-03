@@ -5,6 +5,12 @@
 		},
 		{
 			"path": "Techbodia.Server"
+		},
+		{
+			"path": "docs"
+		},
+		{
+			"path": "maindb"
 		}
 	],
 	"settings": {
