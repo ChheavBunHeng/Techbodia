@@ -1,5 +1,3 @@
-import type { NumberLiteralType } from "typescript";
-
 export interface Note {
   id: number;
   title: string;

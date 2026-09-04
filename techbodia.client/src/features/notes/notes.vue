@@ -1,44 +1,39 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import api from "../../api/axios";
+import { useAuthStore } from "../auth/useAuthStore";
 import type { Note } from "./page.type";
 
-// Reactive State
+const router = useRouter();
+const authStore = useAuthStore();
 const searchQuery = ref("");
 const isModalOpen = ref(false);
 const selectedNote = ref<Note | null>(null);
-
-// Form Fields for Modal
 const noteTitle = ref("");
 const noteContent = ref("");
+const notes = ref<Note[]>([]);
+const errorMessage = ref("");
 
-// Mock Notes Data
-const mockNotes = ref<Note[]>([
-  {
-    id: 1,
-    title: "Project Architecture Notes",
-    content:
-      "Feature-based pattern separating page.vue, page.type.ts, page.api.ts, and page.action.ts works smoothly.",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    title: "Meeting Checklist",
-    content:
-      "Review ASP.NET Core controllers, check JWT expiration rules, and verify database migrations.",
-    createdAt: new Date().toISOString(),
-  },
-]);
-
-// Filtered Notes based on search
 const filteredNotes = computed(() => {
-  if (!searchQuery.value.trim()) return mockNotes.value;
+  if (!searchQuery.value.trim()) return notes.value;
   const q = searchQuery.value.toLowerCase();
-  return mockNotes.value.filter(
+  return notes.value.filter(
     (n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q),
   );
 });
 
-// Handlers
+async function loadNotes() {
+  if (!authStore.userId.value) return;
+
+  try {
+    const response = await api.get<Note[]>(`/Notes/${authStore.userId.value}`);
+    notes.value = response.data;
+  } catch {
+    errorMessage.value = "Could not load notes.";
+  }
+}
+
 const openCreateModal = () => {
   selectedNote.value = null;
   noteTitle.value = "";
@@ -57,14 +52,45 @@ const closeModal = () => {
   isModalOpen.value = false;
 };
 
-const saveNote = () => {
-  // Logic to save/update note can be placed here
-  closeModal();
+const saveNote = async () => {
+  if (!noteTitle.value.trim() || !authStore.userId.value) return;
+
+  const note = {
+    title: noteTitle.value.trim(),
+    content: noteContent.value.trim(),
+    userId: authStore.userId.value,
+  };
+
+  try {
+    if (selectedNote.value) {
+      await api.put(`/Notes/${selectedNote.value.id}`, note);
+    } else {
+      await api.post("/Notes", note);
+    }
+    closeModal();
+    await loadNotes();
+  } catch {
+    errorMessage.value = "Could not save the note.";
+  }
 };
 
-const deleteNote = (id: number) => {
-  mockNotes.value = mockNotes.value.filter((n) => n.id !== id);
+const deleteNote = async (id: number) => {
+  if (!authStore.userId.value) return;
+
+  try {
+    await api.delete(`/Notes/${id}`, { params: { userId: authStore.userId.value } });
+    await loadNotes();
+  } catch {
+    errorMessage.value = "Could not delete the note.";
+  }
 };
+
+function logout() {
+  authStore.logout();
+  router.push({ name: "login" });
+}
+
+onMounted(loadNotes);
 </script>
 
 <template>
@@ -77,45 +103,36 @@ const deleteNote = (id: number) => {
           <p class="text-slate-500 text-sm mt-1">Manage and organize your personal workspace.</p>
         </div>
 
-        <button
-          @click="openCreateModal"
-          class="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Create Note
-        </button>
+        <div class="flex gap-2">
+          <button
+            @click="openCreateModal"
+            class="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
+          >
+            Create Note
+          </button>
+          <button
+            @click="logout"
+            class="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+          >
+            Logout
+          </button>
+        </div>
       </div>
+
+      <p v-if="errorMessage" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        {{ errorMessage }}
+      </p>
 
       <!-- Toolbar Section -->
       <div
-        class="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm"
+        class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
       >
-        <div class="relative w-full sm:w-80">
-          <svg
-            class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
+        <div class="w-full sm:w-80">
           <input
             type="text"
             placeholder="Search notes..."
             v-model="searchQuery"
-            class="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+            class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
         </div>
 
@@ -150,31 +167,15 @@ const deleteNote = (id: number) => {
             <div class="flex items-center gap-2">
               <button
                 @click="openEditModal(note)"
-                class="p-1 hover:text-indigo-600 transition"
-                title="Edit Note"
+                class="text-xs font-medium text-indigo-600 transition hover:text-indigo-800"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
+                Edit
               </button>
               <button
                 @click="deleteNote(note.id)"
-                class="p-1 hover:text-red-600 transition"
-                title="Delete Note"
+                class="text-xs font-medium text-red-600 transition hover:text-red-800"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
+                Delete
               </button>
             </div>
           </div>
@@ -194,7 +195,9 @@ const deleteNote = (id: number) => {
           <h2 class="text-lg font-bold text-slate-800">
             {{ selectedNote ? "Edit Note" : "New Note" }}
           </h2>
-          <button @click="closeModal" class="text-slate-400 hover:text-slate-600 p-1">✕</button>
+          <button @click="closeModal" class="text-sm text-slate-500 hover:text-slate-800">
+            Close
+          </button>
         </div>
 
         <div class="space-y-3">
